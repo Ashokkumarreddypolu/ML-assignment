@@ -1,0 +1,125 @@
+---
+title: "ML assignment"
+author: "polu ashok kumar reddy"
+date: "December 10, 2017"
+output: html_document
+---
+#Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+#synapsis
+
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+Objective is to predict activity using measurements.
+
+Inorder to predict,following steps are performed
+
+1. Downloading and reading data
+
+2. Data partion
+
+3. Cleaning data
+
+4. Observe correlation between variables
+
+5. Building predictive models and select best model
+
+6. Applying best model on test data set
+
+Random forest is best model and its out of bag error is 2.11%
+
+Random forest is applied on download test data and result as  follws
+
+ B A B A A E D B A A B C B A E E A B B B
+
+#1. Downloading and reading data
+
+Sources for downloading data as follows:
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+```{r}
+
+z<-tempfile()
+z1<-tempfile()
+
+download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv',z)
+
+
+download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv',z1)
+training<-read.csv(z,stringsAsFactors = F)
+testing<-read.csv(z1,stringsAsFactors = F)
+library(caret)
+```
+##2. Data Partitioning
+In order to observe how model will perform on unseen data, data is divided into two(1.traing data set(70%)2.test data(30%))
+
+```{r}
+traingF<-createDataPartition(training$classe,p=0.7,list=F)
+traing1_F<-training[traingF,]
+testing1_F<-training[-traingF,]
+```
+
+
+##3. Cleaning data(remove features which are not useful by missing values and other information)
+
+```{r}
+
+z=apply(traing1_F, 2, function(col)mean(is.na(col)))
+training1<-traing1_F[,z<0.8]
+trainR <- grepl("^X|timestamp|window", names(training1))
+training2 <- training1[, !trainR]
+classe <- training1$classe
+training_F <- training2[, sapply(training2, is.numeric)]
+training_F<-cbind(training_F,classe)
+```
+There were 107 variables with more than 95% of the data missing. Those variables were removed from the data as well. If we built a classification model based on those variables, then we can expect most of the time the variable is missing and therefore we cannot apply the classification rules on them. Therefore, building a model based on variables that's mostly missing is not practical.
+
+##4.Observe correlation between variables
+we can see correlation matrix in annexture
+yaw_belt has strong  correlatilon with most of predictors
+
+##5. Build predictive models and select best model
+```{r}
+train_control<- trainControl(method="cv", number=5)
+model_rf<- train(classe~., data=training_F, trControl=train_control,method="rf",ntree=5)
+model_lda<-train(classe~., data=training_F, trControl=train_control,method="lda")
+
+confusionMatrix(model_rf)
+confusionMatrix(model_lda)
+
+```
+
+as per accuracy, random forest is performing better than lda with 5 fold cross validation
+##6. applying best model on test data set
+applying Random forest on testing data set to check consistency of algorithm on new data
+
+```{r}
+testing_F=testing1_F[,names(training_F)]
+predict_rf<-predict(model_rf,testing_F)
+confusionMatrix(testing_F$classe,predict_rf)
+
+```
+From above accuracy table, out of bag error is 2.11%
+
+7.predicting values for downloaded test data
+
+```{r}
+testing1111=testing[,names(testing) %in% names(training_F)]
+predict(model_rf,testing1111)
+
+```
+
+#Annexure
+
+```{r}
+str(testing1_F)
+cor(training_F[,1:length(training_F)-1])
+```
